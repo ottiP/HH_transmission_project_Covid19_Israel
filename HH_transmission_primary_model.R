@@ -51,19 +51,6 @@ model.run <- function(X,Y){
   nlm(chain_bin_lik,p=params,Y=Y,X=X,hessian=TRUE)
 }
 
-##### Generate the synthetic data with 10k HHs and store them as a dataframe: the data is already restricted in the study 
-##### period: 15th June 2020 - 24 March 2021
-N.HH <- 40000
-sim.data.ls <- pblapply(1:N.HH, gen.hh,CPI=(1-0.9995), prob.trans.day=(1-0.968),irr.vax1=0.5,irr.vax2=1)
-#The format is the same as the real data, though the values are completely fake and relevant only to play with the code
-n.infect.hh <- sapply(sim.data.ls,function(x) sum(x$infected))
-sim.data.pos.hh <- sim.data.ls[(n.infect.hh>0)]
-sim.data.df <- bind_rows(sim.data.pos.hh)
-saveRDS(sim.data.df,file=paste("../Data/simulated_data.rds"),compress=TRUE)
-
-
-
-
 ##### Load the data 
 data_sim <- readRDS("../Data/simulated_data.rds")
 startdate <- as.Date("2020-08-29") ### allow for up to 17 days prior to the start of the study period to infections to occur
