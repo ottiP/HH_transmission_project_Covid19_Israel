@@ -32,7 +32,7 @@ gen.latent.data.par <- function(ds,i,cl1){
 }
 
 parRead <- function(i){
-  ds <- readRDS(file=paste("../LatentData_primarymodel/latentData_",i,".rds"))
+  ds <- readRDS(file=paste("./LatentData_primarymodel/latentData_",i,".rds"))
   output <- model.run(ds$X,ds$Y)
   ds <- NULL
   return(output)
@@ -50,6 +50,19 @@ model.run <- function(X,Y){
   params <- c(alpha0,delta0,beta2,kappa2,gamma1,gamma2,delta1)
   nlm(chain_bin_lik,p=params,Y=Y,X=X,hessian=TRUE)
 }
+
+##### Generate the synthetic data with 10k HHs and store them as a dataframe: the data is already restricted in the study 
+##### period: 15th June 2020 - 24 March 2021
+N.HH <- 40000
+sim.data.ls <- pblapply(1:N.HH, gen.hh,CPI=(1-0.9995), prob.trans.day=(1-0.968),irr.vax1=0.5,irr.vax2=1)
+#The format is the same as the real data, though the values are completely fake and relevant only to play with the code
+n.infect.hh <- sapply(sim.data.ls,function(x) sum(x$infected))
+sim.data.pos.hh <- sim.data.ls[(n.infect.hh>0)]
+sim.data.df <- bind_rows(sim.data.pos.hh)
+saveRDS(sim.data.df,file=paste("./Data/simulated_data.rds"),compress=TRUE)
+
+
+
 
 ##### Load the data 
 data_sim <- readRDS("../Data/simulated_data.rds")
@@ -109,7 +122,7 @@ clusterEvalQ(cl1, {
 clusterExport(cl1,c('model.run','parRead','chain_bin_lik','fileNumber'),envir=environment())
 
 out.list <- pblapply(seq(1,fileNumber),parRead,cl=cl1)
-saveRDS(out.list,file="../Results_primarymodel/results_primary.rds")
+saveRDS(out.list,file="./Results_primarymodel/results_primary.rds")
 stopCluster(cl1)
 
 
@@ -119,4 +132,4 @@ stopCluster(cl1)
 
 
 
-table((data_sim$PCR_DATE[data_sim$infected==1]))
+#table((data_sim$PCR_DATE[data_sim$infected==1]))
