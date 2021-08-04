@@ -8,8 +8,16 @@ start.date <- as.Date('2020-06-01')
 end.date <- as.Date('2021-04-01')
 all.date <- seq.Date(from=start.date, to=end.date, by='day')
 
-d1$infect.date <- d1$PCR_DATE - rgamma(nrow(d1), 7,2)
+#When exposed? (this is date of censoring)
+d1$exposed.date <- d1$PCR_DATE - rgamma(nrow(d1), 7,2)
+d1$exposed.date[d1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
+
+#When infectious?
+d1$infect.date <- d1$exposed.date + rgamma(nrow(d1), 3,2)
 d1$infect.date[d1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
+
+#When is the person no longer infectious
+d1$end.infectious.date <- d1$infect.date + rgamma(nrow(d1), 7,1)
 
 d1$agegrp <- 1
 d1$agegrp[d1$AGE>18 & d1$age<60] <- 2
@@ -22,7 +30,7 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
 
     n.date.uninf <- lapply(all.date, function(x){
       vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
-      counts <- data.table( d1$infect.date > x ) 
+      counts <- data.table( d1$exposed.date > x ) 
       grpN <- aggregate(x = counts, 
                                      by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp), 
                                      FUN = length)
@@ -38,6 +46,6 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
     
 ####################################################################################################################
 #Step 2, Count exposure days in the household based on the number of infected people in each group
-    
 ####################################################################################################################
+    
     
