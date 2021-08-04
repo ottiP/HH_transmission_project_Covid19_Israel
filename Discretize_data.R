@@ -15,20 +15,29 @@ d1$agegrp <- 1
 d1$agegrp[d1$AGE>18 & d1$age<60] <- 2
 d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
 
+####################################################################################################################
 #Step 1, count all people who have not yet been infected, regardless of household infection status, 
 #by vaccine status and age group at that time. This is used for estimating exogenous piece of the likelihood
+####################################################################################################################
 
-n.date.uninf <- lapply(all.date, function(x){
-  vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
-  counts <- data.table( d1$infect.date > x ) 
-  grpN <- aggregate(x = counts, 
-                                 by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp), 
-                                 FUN = length)
-  return(grpN)
-}
-) 
-  
-n.date.uninf <- bind_rows(n.date.uninf)
+    n.date.uninf <- lapply(all.date, function(x){
+      vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
+      counts <- data.table( d1$infect.date > x ) 
+      grpN <- aggregate(x = counts, 
+                                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp), 
+                                     FUN = length)
+      return(grpN)
+    }
+    ) 
+      
+    n.date.uninf <- bind_rows(n.date.uninf)
+    
+    #This plot shows the number of people in each category by date
+    plot(n.date.uninf$date, n.date.uninf$V1)
 
-#This plot shows the number of people in each category by date
-plot(n.date.uninf$date, n.date.uninf$V1)
+    
+####################################################################################################################
+#Step 2, Count exposure days in the household based on the number of infected people in each group
+    
+####################################################################################################################
+    
