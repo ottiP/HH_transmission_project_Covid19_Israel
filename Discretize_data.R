@@ -15,8 +15,8 @@ d1$agegrp <- 1
 d1$agegrp[d1$AGE>18 & d1$age<60] <- 2
 d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
 
-#Step 1a, count all people who have not yet been infected, regardless of household infection status, 
-#by vaccine status and age group at that time
+#Step 1, count all people who have not yet been infected, regardless of household infection status, 
+#by vaccine status and age group at that time. This is used for estimating exogenous piece of the likelihood
 
 n.date.uninf <- lapply(all.date, function(x){
   vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
