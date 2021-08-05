@@ -53,7 +53,7 @@ n.date.uninf <- lapply(all.date, function(x){
   countsInf <-  (d1$exposed.date == x)*d1$infected  #how many people exposed this date? 
   
   grpN <- aggregate( cbind.data.frame(countsUninf,countsInf), 
-                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, hh_infected=d1$hh_infected, hh_single=d1$hh_single), 
+                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, person_infected=d1$infected, hh_single=d1$hh_single), 
                      FUN = sum)
   return(grpN)
 }
@@ -72,32 +72,51 @@ plot(n.date.uninf$date, n.date.uninf$countsInf)
 
 X.exo <- model.matrix(  ~ as.factor(agec) + as.factor(vax1) + cases.day  , data=n.date.uninf)
 
-params.exo <- rep(0, ncol(X.exo))
+params.exo <- rep(-0.001, ncol(X.exo))  #Just plug in random values...this is part of what is estimated by mle
 
-n.date.uninf$log_p_exo <- as.vector(X.exo %*% params.exo)
+n.date.uninf$log_r_c <- as.vector(X.exo %*% params.exo)
 
-n.date.uninf$q_exo <-   1 - exp(n.date.uninf$log_p_exo)
+n.date.uninf$q_exo <-   1 - exp(n.date.uninf$log_r_c)
 
-#LL for uninfected HH
+#####################################################################################################
+#LL for uninfected PERSON (rather than uninfected hh)
+#########################################################################################################
 
-uninf.hh <- n.date.uninf[n.date.uninf$hh_infected==F,]
+uninf.hh <- n.date.uninf[n.date.uninf$person_infected==F,]
 
-ll_exo_piece0 <- sum( log( (1- uninf.hh$q_exo )^ uninf.hh$countsUninf )) #LL contribution of uninfected HH
+ll_exo_piece0 <- sum(  uninf.hh$countsUninf * log( ( uninf.hh$q_exo ))) ###LL contribution of uninfected PEOPLE ####
+
+
+###########################################################################################
+#Then LL piece for PEOPLE with infection 
+###########################################################################################                             
+inf.hh <- n.date.uninf[n.date.uninf$person_infected==T ,]
+inf.hh.spl <- split(inf.hh, paste(inf.hh$vax1, inf.hh$agec))
+inf.hh.spl <- lapply(inf.hh.spl, function(x) x[order(x$date),] )
+inf.hh.spl <- lapply(inf.hh.spl, function(x){
+  x$cum.q.t1 <-  exp(cumsum( log( x$q_exo) )) / x$q_exo #product of probability 1 -> t-1  
+  x$prob.piece <- ((1- x$q_exo) * x$cum.q.t1  ) ^ x$countsInf 
+  x <- x[x$countsInf >0,] #Only keeps strata/days when there is actually a case reported (other days used for calculating cum probabilities)
+  return(x)
+} 
+)
+
+inf.hh2 <- bind_rows(inf.hh.spl)
+
+ll_exo_piece1 <- sum( log(inf.hh2$prob.piece))  ###LL contribution of infected HH ####
+
+ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
+
+
+
+
 
 ##exogenous LL for HH with 1 infection, 1 person
-single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T & n.date.uninf$hh_infected==T ,c('date','q_exo','countsInf')])
+#single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T & n.date.uninf$hh_infected==T ,c('date','q_exo','countsInf')])
 
-single.hh$cum.prob.t1 <- (cumsum( 1- single.hh$q_exo)) -  (1- single.hh$q_exo) #cum probability 1 -> t-1
+#single.hh$cum.prob.t1 <- (cumsum( 1- single.hh$q_exo)) -  (1- single.hh$q_exo) #cum probability 1 -> t-1
 
-ll_exo_piece1 <-   sum(single.hh$countsInf * ( (log(1-single.hh$q_exo) - single.hh$cum.prob_t1) ) )
-
-#Then LL piece for households with infection with size>1
-                             
-    #ZZZ                         
-
-
-
-    
+#ll_exo_piece1 <-   sum(single.hh$countsInf * ( (log(1-single.hh$q_exo) - single.hh$cum.prob_t1) ) )    
 ####################################################################################################################
 #Step 2, Count exposure days in the household based on the number of infected people in each group
 ####################################################################################################################
