@@ -37,6 +37,9 @@ d1 <- d1 %>%
 
 d1$hh_infected <- d1$n.infections.hh > 1 #Is this a HH that is ultimately infected?
 
+d1$hh_single <- d1$n.people.hh ==1 #is this a single person HH
+
+
 ####################################################################################################################
 #Step 1, count all people who have not yet been infected, regardless of household infection status, 
 #by vaccine status and age group at that time. This is used for estimating exogenous piece of the likelihood
@@ -50,7 +53,7 @@ n.date.uninf <- lapply(all.date, function(x){
   countsInf <-  (d1$exposed.date == x)*d1$infected  #how many people exposed this date? 
   
   grpN <- aggregate( cbind.data.frame(countsUninf,countsInf), 
-                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, hh_infected=d1$hh_infected), 
+                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, hh_infected=d1$hh_infected, hh_single=d1$hh_single), 
                      FUN = sum)
   return(grpN)
 }
