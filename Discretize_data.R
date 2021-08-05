@@ -2,7 +2,7 @@ library(data.table)
 library(dplyr)
 library(lubridate)
 d1 <- readRDS('./Data/simulated_data.rds')
-
+set.seed(123)
 
 
 start.date <- as.Date('2020-06-01')
@@ -24,10 +24,25 @@ d1$agegrp <- 1
 d1$agegrp[d1$AGE>18 & d1$age<60] <- 2
 d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
 
+#What is the first date of infection in each household, how many Infectins per HH, how many people per HH?
+d1 <- d1 %>%
+  group_by(HH_CERTAIN) %>%
+  mutate(
+    hh.first.date = min(exposed.date, na.rm = T),
+    n.infections.hh = sum(infected, na.rm = T),
+    n.people.hh = length(infected),
+    
+  ) %>%
+  arrange(HH_CERTAIN)
+
+d1$hh_infected <- d1$n.infections.hh > 1 #Is this a HH that is ultimately infected?
+
 ####################################################################################################################
 #Step 1, count all people who have not yet been infected, regardless of household infection status, 
 #by vaccine status and age group at that time. This is used for estimating exogenous piece of the likelihood
 ####################################################################################################################
+
+#Not sure if this is right--do we need to separate this out for households who ultimately become infected and those that don't?
 
 n.date.uninf <- lapply(all.date, function(x){
   vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
@@ -35,7 +50,7 @@ n.date.uninf <- lapply(all.date, function(x){
   countsInf <-  (d1$exposed.date == x)*d1$infected  #how many people exposed this date? 
   
   grpN <- aggregate( cbind.data.frame(countsUninf,countsInf), 
-                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp), 
+                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, hh_infected=d1$hh_infected), 
                      FUN = sum)
   return(grpN)
 }
@@ -54,18 +69,7 @@ plot(n.date.uninf$date, n.date.uninf$countsInf)
 ####################################################################################################################
     
 
-    #What is the first date of infection in each household, how many Infectins per HH, how many people per HH?
-    d1 <- d1 %>%
-      group_by(HH_CERTAIN) %>%
-      mutate(
-        hh.first.date = min(exposed.date, na.rm = T),
-        n.infections.hh = sum(infected, na.rm = T),
-        n.people.hh = length(infected),
-        
-      ) %>%
-      arrange(HH_CERTAIN)
-    
-    #FIlter out HH with at least 1 infections and 2+ people for this calculation since focus is on HH transmission specifically
+     #FIlter out HH with at least 1 infections and 2+ people for this calculation since focus is on HH transmission specifically
     b1 <- d1[d1$n.infections.hh>0 & d1$n.people.hh>=2 ,]
     
     
