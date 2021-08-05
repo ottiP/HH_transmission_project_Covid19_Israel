@@ -1,5 +1,6 @@
 library(data.table)
 library(dplyr)
+library(lubridate)
 d1 <- readRDS('./Data/simulated_data.rds')
 
 
@@ -9,15 +10,15 @@ end.date <- as.Date('2021-04-01')
 all.date <- seq.Date(from=start.date, to=end.date, by='day')
 
 #When exposed? (this is date of censoring)
-d1$exposed.date <- d1$PCR_DATE - rgamma(nrow(d1), 7,2)
+d1$exposed.date <- floor_date(d1$PCR_DATE - rgamma(nrow(d1), 7,2), unit='day') #note: need to use floor date otherwise have fractional days, which causes problems later
 d1$exposed.date[d1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
 
 #When infectious?
-d1$infect.date <- d1$exposed.date + rgamma(nrow(d1), 3,2)
+d1$infect.date <- floor_date(d1$exposed.date + rgamma(nrow(d1), 3,2), unit='day')
 d1$infect.date[d1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
 
 #When is the person no longer infectious
-d1$end.infectious.date <- d1$infect.date + rgamma(nrow(d1), 7,1)
+d1$end.infectious.date <- floor_date(d1$infect.date + rgamma(nrow(d1), 7,1), unit='day')
 
 d1$agegrp <- 1
 d1$agegrp[d1$AGE>18 & d1$age<60] <- 2
@@ -28,20 +29,24 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
 #by vaccine status and age group at that time. This is used for estimating exogenous piece of the likelihood
 ####################################################################################################################
 
-    n.date.uninf <- lapply(all.date, function(x){
-      vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
-      counts <- data.table( d1$exposed.date > x ) 
-      grpN <- aggregate(x = counts, 
-                                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, infected=d1$infected), 
-                                     FUN = length)
-      return(grpN)
-    }
-    ) 
-      
-    n.date.uninf <- bind_rows(n.date.uninf)
-    
-    #This plot shows the number of people in each category by date
-    plot(n.date.uninf$date, n.date.uninf$V1)
+n.date.uninf <- lapply(all.date, function(x){
+  vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
+  countsUninf <-  d1$exposed.date > x 
+  countsInf <-  (d1$exposed.date == x)*d1$infected  #how many people exposed this date? 
+  
+  grpN <- aggregate( cbind.data.frame(countsUninf,countsInf), 
+                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp), 
+                     FUN = sum)
+  return(grpN)
+}
+) 
+
+n.date.uninf <- bind_rows(n.date.uninf)
+
+#This plot shows the number of people in each category by date
+plot(n.date.uninf$date, n.date.uninf$countsUninf)
+plot(n.date.uninf$date, n.date.uninf$countsInf)
+
 
     
 ####################################################################################################################
