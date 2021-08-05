@@ -20,7 +20,7 @@ lik_noinf <- function(params,cases,df_noinf){
     #age0
     x<-cbind(0,
              1,  
-             c(rep(0, times = as.numeric(vax_cats[j] - start)), rep(1, times = as.numeric(enddate - vax_cats[j] + 1))),
+             c(rep(0, times = floor(as.numeric(vax_cats[j] - start))), rep(1, times = floor(as.numeric(enddate - vax_cats[j] + 1)))),
              0,
              0,
              0,
@@ -31,7 +31,7 @@ lik_noinf <- function(params,cases,df_noinf){
     #age1
     x<-cbind(0,
              1,
-             c(rep(0, times = as.numeric(vax_cats[j] - start)), rep(1, times = as.numeric(enddate - vax_cats[j] + 1))),
+             c(rep(0, times = floor(as.numeric(vax_cats[j] - start))), rep(1, times = floor(as.numeric(enddate - vax_cats[j] + 1)))),
              0,
              1,
              0,
@@ -42,7 +42,7 @@ lik_noinf <- function(params,cases,df_noinf){
     #age2
     x<-cbind(0,
              1,
-             c(rep(0, times = as.numeric(vax_cats[j] - start)), rep(1, times = as.numeric(enddate - vax_cats[j] + 1))),
+             c(rep(0, times = floor(as.numeric(vax_cats[j] - start))), rep(1, times = floor(as.numeric(enddate - vax_cats[j] + 1)))),
              0,
              0,
              1,
