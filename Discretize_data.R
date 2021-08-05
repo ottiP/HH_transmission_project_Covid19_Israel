@@ -84,6 +84,7 @@ n.date.uninf$q_exo <-   1 - exp(n.date.uninf$log_r_c)
 
 uninf.hh <- n.date.uninf[n.date.uninf$person_infected==F,]
 
+#INSTEAD KEEP THIS AS A PROBABILITY BY GROUP AND ADD BACK ONTO n.date.uninf dataframe
 ll_exo_piece0 <- sum(  uninf.hh$countsUninf * log( ( uninf.hh$q_exo ))) ###LL contribution of uninfected PEOPLE ####
 
 
@@ -91,11 +92,14 @@ ll_exo_piece0 <- sum(  uninf.hh$countsUninf * log( ( uninf.hh$q_exo ))) ###LL co
 #Then LL piece for PEOPLE with infection 
 ###########################################################################################                             
 inf.hh <- n.date.uninf[n.date.uninf$person_infected==T ,]
-inf.hh.spl <- split(inf.hh, paste(inf.hh$vax1, inf.hh$agec))
-inf.hh.spl <- lapply(inf.hh.spl, function(x) x[order(x$date),] )
+
+inf.hh.spl <- split(inf.hh, paste(inf.hh$vax1, inf.hh$agec)) #split by covariates
+
+inf.hh.spl <- lapply(inf.hh.spl, function(x) x[order(x$date),] ) #sort each of the dataframes
+
 inf.hh.spl <- lapply(inf.hh.spl, function(x){
-  x$cum.q.t1 <-  exp(cumsum( log( x$q_exo) )) / x$q_exo #product of probability 1 -> t-1  
-  x$prob.piece <- ((1- x$q_exo) * x$cum.q.t1  ) ^ x$countsInf 
+  x$cum.q.t1 <-  exp(cumsum( log( x$q_exo) )) / x$q_exo #Probaility of being uninfected to time t-1
+  x$prob.piece <- ((1- x$q_exo) * x$cum.q.t1  ) ^ x$countsInf  
   x <- x[x$countsInf >0,] #Only keeps strata/days when there is actually a case reported (other days used for calculating cum probabilities)
   return(x)
 } 
@@ -107,6 +111,9 @@ ll_exo_piece1 <- sum( log(inf.hh2$prob.piece))  ###LL contribution of infected H
 
 ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
 
+
+#NOTE: actually ll_exo and ll_exo_piece0 and ll_exo_piece1 should be added onto the n.date.uninf data frame by group (or some subset of this),
+#then the LL contribution from HH should be added on to this as well...the piees added up, then the LL calculated 
 
 
 
