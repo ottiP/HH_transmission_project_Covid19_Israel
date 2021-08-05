@@ -110,13 +110,6 @@ ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
 
 
 
-
-##exogenous LL for HH with 1 infection, 1 person
-#single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T & n.date.uninf$hh_infected==T ,c('date','q_exo','countsInf')])
-
-#single.hh$cum.prob.t1 <- (cumsum( 1- single.hh$q_exo)) -  (1- single.hh$q_exo) #cum probability 1 -> t-1
-
-#ll_exo_piece1 <-   sum(single.hh$countsInf * ( (log(1-single.hh$q_exo) - single.hh$cum.prob_t1) ) )    
 ####################################################################################################################
 #Step 2, Count exposure days in the household based on the number of infected people in each group
 ####################################################################################################################
