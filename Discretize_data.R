@@ -115,7 +115,7 @@ ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
 ####################################################################################################################
     
 
-     #FIlter out HH with at least 1 infections and 2+ people for this calculation since focus is on HH transmission specifically
+     #FIlter out HH with no infections infections and 1 people for this calculation since focus is on HH transmission specifically
     b1 <- d1[d1$n.infections.hh>0 & d1$n.people.hh>=2 ,]
     
     
