@@ -68,7 +68,8 @@ plot(n.date.uninf$date, n.date.uninf$countsUninf)
 plot(n.date.uninf$date, n.date.uninf$countsInf)
 
 
-#LL for exogenous piece
+## Calculate probability for each stratum
+
 X.exo <- model.matrix(  ~ as.factor(agec) + as.factor(vax1) + cases.day  , data=n.date.uninf)
 
 params.exo <- rep(0, ncol(X.exo))
@@ -86,7 +87,7 @@ ll_exo_piece0 <- sum( log( (1- uninf.hh$q_exo )^ uninf.hh$countsUninf )) #LL con
 ##exogenous LL for HH with 1 infection, 1 person
 single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T & n.date.uninf$hh_infected==T ,c('date','q_exo','countsInf')])
 
-single.hh$cum.prob_t1 <- exp(sum(log(single.hh$q_exo))) - (1-single.hh$q_exo) #cum prob up to t-1
+single.hh$cum.prob.t1 <- (cumsum( 1- single.hh$q_exo)) -  (1- single.hh$q_exo) #cum probability 1 -> t-1
 
 ll_exo_piece1 <-   sum(single.hh$countsInf * ( (log(1-single.hh$q_exo) - single.hh$cum.prob_t1) ) )
 
