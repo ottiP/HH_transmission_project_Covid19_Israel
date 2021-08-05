@@ -32,7 +32,7 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
       vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
       counts <- data.table( d1$exposed.date > x ) 
       grpN <- aggregate(x = counts, 
-                                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp), 
+                                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, infected=d1$infected), 
                                      FUN = length)
       return(grpN)
     }
