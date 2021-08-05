@@ -48,11 +48,8 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
 #Step 2, Count exposure days in the household based on the number of infected people in each group
 ####################################################################################################################
     
-    #NOTE: need to filter out HH with no infections
-    
-    #For each HH that has an infection, need to define for each day how many contacts are infected
-    
-    #What is the first date of infection in each household
+
+    #What is the first date of infection in each household, how many Infectins per HH, how many people per HH?
     d1 <- d1 %>%
       group_by(HH_CERTAIN) %>%
       mutate(
@@ -66,28 +63,42 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
     #FIlter out HH with at least 1 infections and 2+ people for this calculation since focus is on HH transmission specifically
     b1 <- d1[d1$n.infections.hh>0 & d1$n.people.hh>=2 ,]
     
- 
-    #could vectorize this whole thing instead of loop
-   # for(d in 0:40){
-    for(d in 3){
     
-      b1$cal_date <- b1$hh.first.date + d #what is the current date in the HH (defined relative to first infection in HH)
+     ##ASSUMPTION: fix the vaccine status for each individual to its value at date of first infection in the HH (reasonable given relatively short time period)
+      b1$vax <- ((b1$vax2dose_date + 10) < b1$hh.first.date )#was the person vaccinated 10+ days before the first infection in the HH?
       
-      b1$vax <- ((b1$vax2dose_date + 10) < b1$cal_date )#was the person vaccinated 10+ days before the current date?
+      b1$vax[is.na(b1$vax)] <- 0 #if vaxdate=NA, vax=NA
       
-      b1$not_infected <- b1$exposed.date > b1$cal_date  # has the person been infected by cal_date?
+      #b1$not_infected <- b1$exposed.date > b1$cal_date  # has the person been infected by cal_date?
       
-      b1$infectious <- (b1$cal_date >= b1$infect.date) & (b1$cal_date < b1$end.infectious.date) #is the individual infectious at this time?
+     # b1$infectious <- (b1$cal_date >= b1$infect.date) & (b1$cal_date < b1$end.infectious.date) #is the individual infectious at this time?
     
-      c1 <- b1[,c("HH_CERTAIN",'agegrp', 'vax', 'not_infected', 'infectious')]
+      c1 <- b1[,c('ID',"HH_CERTAIN",'agegrp', 'vax', 'exposed.date', 'infect.date', 'end.infectious.date', 'infected')]
     
-      #(Next step--copy c1, change names, then do man-many merge by HH with c1)
-    }
-    
-    
-    
-    n.hh.days <- 0:40 #from day 0-40 of follow up in the household
-    n.day.hh <- lapply(n.hh.days , function(x){
+      d1 <- c1  #copies c1
       
+      names(d1) <- paste0('contact',names(c1))
       
-    })
+      #Note there is probably a more clever way to code this so we don't have to do many to many on all possible combos and then filter
+      e1 <- merge( c1, d1, by.x='HH_CERTAIN', by.y='contactHH_CERTAIN') #many-to-many merge by HH
+      
+      e1 <- e1[e1$ID != e1$contactID,] #get rid of self-self rows
+      
+      e1 <- e1[e1$contactinfected == 1, ] #a pair can only contribute person time if 'contact' is infected at some point
+    
+      #Now count number of follow up days for the pairs
+      e1$hh_risk_time1 <- (e1$contactend.infectious.date - e1$contactinfect.date)  #total time contact is infectious
+      e1$hh_risk_time2 <-           ( e1$exposed.date - e1$contactinfect.date  )    ##time between when contact is infection and when person 1 is censored
+    
+      #Take the minimum of hh_risk_time1, hh_risk_time2
+      e1$hh_risk_time <- e1$hh_risk_time1 * (e1$hh_risk_time1<e1$hh_risk_time2) + e1$hh_risk_time2 * (e1$hh_risk_time2<e1$hh_risk_time1)
+      e1$hh_risk_time[e1$hh_risk_time <0] <- 0
+      
+      e1 <- e1[,c('agegrp','contactagegrp', 'vax','contactvax','hh_risk_time')]
+      
+      #then aggregate the hh_risk time by group
+      
+      f1 <- aggregate( e1[,'hh_risk_time'], by=list('agegrp'=e1$agegrp,'contactagegrp'=e1$contactagegrp, 'vax'=e1$vax,'contactvax'=e1$contactvax), FUN=sum)
+      
+      saveRDS(f1,'./Data/discrete_data.rds')
+      
