@@ -14,9 +14,11 @@ library(msm)
 
 source('./simulate_data.R')
 N.HH <- 1000
+set.seed(123)
 sim.data.ls <- pblapply(1:N.HH, gen.hh,CPI=(1-0.9995), prob.trans.day=(1-0.968),irr.vax1=0.5,irr.vax2=1)
 #The format is the same as the real data, though the values are completely fake and relevant only to play with the code
 n.infect.hh <- sapply(sim.data.ls,function(x) sum(x$infected))
-sim.data.pos.hh <- sim.data.ls[(n.infect.hh>0)]
-sim.data.df <- bind_rows(sim.data.pos.hh)
+#sim.data.pos.hh <- sim.data.ls[(n.infect.hh>0)]
+
+sim.data.df <- bind_rows(sim.data.ls)
 saveRDS(sim.data.df,file=paste("./Data/simulated_data.rds"),compress=TRUE)

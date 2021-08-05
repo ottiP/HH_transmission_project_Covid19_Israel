@@ -61,9 +61,37 @@ n.date.uninf <- lapply(all.date, function(x){
 
 n.date.uninf <- bind_rows(n.date.uninf)
 
+n.date.uninf$cases.day <- rpois(nrow(n.date.uninf), lambda=100)  #NOTE: IN REAL DATA MERGE IN INCIDENCE DATA HERE
+
 #This plot shows the number of people in each category by date
 plot(n.date.uninf$date, n.date.uninf$countsUninf)
 plot(n.date.uninf$date, n.date.uninf$countsInf)
+
+
+#LL for exogenous piece
+X.exo <- model.matrix(  ~ as.factor(agec) + as.factor(vax1) + cases.day  , data=n.date.uninf)
+
+params.exo <- rep(0, ncol(X.exo))
+
+n.date.uninf$log_p_exo <- as.vector(X.exo %*% params.exo)
+
+n.date.uninf$q_exo <-   1 - exp(n.date.uninf$log_p_exo)
+
+#LL for uninfected HH
+
+uninf.hh <- n.date.uninf[n.date.uninf$hh_infected==F,]
+
+ll_exo_piece0 <- sum( log( (1- uninf.hh$q_exo )^ uninf.hh$countsUninf )) #LL contribution of uninfected HH
+
+##exogenous LL for HH with 1 infection, 1 person
+single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T,c('date','q_exo','countsInf')])
+
+single.hh$cum.prob_t1 <- exp(sum(log(single.hh$q_exo))) - (1-single.hh$q_exo) #cum prob up to t-1
+
+ll_exo_piece1 <-   sum(single.hh$countsInf * ( (log(1-single.hh$q_exo) - single.hh$cum.prob_t1) ) )
+                             
+                             
+
 
 
     
