@@ -126,7 +126,7 @@ ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
 ####################################################################################################################
     
 
-     #FIlter out HH with no infections infections and 1 people for this calculation since focus is on HH transmission specifically
+    #FIlter out HH with no infections infections and 1 people for this calculation since focus is on HH transmission specifically
     b1 <- a1[a1$n.infections.hh>0 & a1$n.people.hh>=2 ,]
     
     
@@ -139,6 +139,13 @@ ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
       
      # b1$infectious <- (b1$cal_date >= b1$infect.date) & (b1$cal_date < b1$end.infectious.date) #is the individual infectious at this time?
     
+      
+      #TODO: 1) In Step 1, add in LL contribution from households before first infection and after last infectious period clears
+      #    2) For each HH, define period when they hve at least 1 infection [d0, d1]
+          #  3) expand data frame b1 to represent all dates for the HH between d0 and d1, call it 'calendar.date', retain calendar.date on b1
+          #  4) when creating e1 (man-to-many merge), merge on HH AND on calendar.date
+            #5) Merge in time risk variable by calendar date
+           #6 calculate LL for this part
       c1 <- b1[,c('ID',"HH_CERTAIN",'agegrp', 'vax', 'exposed.date', 'infect.date', 'end.infectious.date', 'infected')]
     
       d1 <- c1  #copies c1
