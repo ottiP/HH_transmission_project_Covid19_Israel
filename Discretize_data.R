@@ -53,7 +53,7 @@ n.date.uninf <- lapply(all.date, function(x){
   countsInf <-  (a1$exposed.date == x)*a1$infected  #how many people exposed this date? 
   
   grpN <- aggregate( cbind.data.frame(countsUninf,countsInf), 
-                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=a1$agegrp, person_infected=a1$infected, hh_single=a1$hh_single), 
+                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=a1$agegrp, hh_infected=a1$hh_infected, hh_single=a1$hh_single), 
                      FUN = sum)
   return(grpN)
 }
@@ -79,19 +79,20 @@ n.date.uninf$log_r_c <- as.vector(X.exo %*% params.exo)
 n.date.uninf$q_exo <-   1 - exp(n.date.uninf$log_r_c)
 
 #####################################################################################################
-#LL for uninfected PERSON (rather than uninfected hh)
+#LL piece for uninfected HOUSEHOLD
 #########################################################################################################
 
-uninf.hh <- n.date.uninf[n.date.uninf$person_infected==F,]
+uninf.hh <- n.date.uninf[n.date.uninf$hh_infected==F,]
 
-#INSTEAD KEEP THIS AS A PROBABILITY BY GROUP AND ADD BACK ONTO n.date.uninf dataframe
 ll_exo_piece0 <- sum(  uninf.hh$countsUninf * log( ( uninf.hh$q_exo ))) ###LL contribution of uninfected PEOPLE ####
 
 
 ###########################################################################################
-#Then LL piece for PEOPLE with infection 
+#Then LL piece for Households of size 1 with infection 
 ###########################################################################################                             
-inf.hh <- n.date.uninf[n.date.uninf$person_infected==T ,]
+inf.hh <- n.date.uninf[n.date.uninf$hh_single==T & n.date.uninf$hh_infected==T ,]
+
+if(nrow(inf.hh)>0){  #are there single HH with infection?
 
 inf.hh.spl <- split(inf.hh, paste(inf.hh$vax1, inf.hh$agec)) #split by covariates
 
@@ -109,16 +110,19 @@ inf.hh2 <- bind_rows(inf.hh.spl)
 
 ll_exo_piece1 <- sum( log(inf.hh2$prob.piece))  ###LL contribution of infected HH ####
 
+}else{
+  ll_exo_piece1 <- 0
+}
+
 ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
 
 
-#NOTE: actually ll_exo and ll_exo_piece0 and ll_exo_piece1 should be added onto the n.date.uninf data frame by group (or some subset of this),
-#then the LL contribution from HH should be added on to this as well...the piees added up, then the LL calculated 
 
 
 
 ####################################################################################################################
 #Step 2, Count exposure days in the household based on the number of infected people in each group
+#--Need to expand this by day, add in cases.day as covariate with same coefficient as above
 ####################################################################################################################
     
 
