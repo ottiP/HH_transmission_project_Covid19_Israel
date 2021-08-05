@@ -30,10 +30,12 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
 
     n.date.uninf <- lapply(all.date, function(x){
       vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
-      counts <- data.table( d1$exposed.date > x ) 
-      grpN <- aggregate(x = counts, 
+      countsUninf <-  d1$exposed.date > x 
+      countsInf <-  (d1$exposed.date == x)*d1$infected  #how many people exposed this date? 
+      
+      grpN <- aggregate( cbind.data.frame(countsUninf,countsInf), 
                                      by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp), 
-                                     FUN = length)
+                                     FUN = sum)
       return(grpN)
     }
     ) 
@@ -41,7 +43,11 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
     n.date.uninf <- bind_rows(n.date.uninf)
     
     #This plot shows the number of people in each category by date
-    plot(n.date.uninf$date, n.date.uninf$V1)
+    plot(n.date.uninf$date, n.date.uninf$countsUninf)
+    plot(n.date.uninf$date, n.date.uninf$countsInf)
+    
+    ###NOTE THIS NEEDS TO BE MODIFIED TO COUNT NUMBER OF PEOPLE unINFECTED
+    #AT EACH TIME POINT AND NUMBER OF PEOPLE INFEXTED AT EACH POINT
 
     
 ####################################################################################################################
@@ -66,6 +72,8 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
     #FIlter out HH with at least 1 infections and 2+ people for this calculation since focus is on HH transmission specifically
     b1 <- d1[d1$n.infections.hh>0 & d1$n.people.hh>=2 ,]
     
+    
+    
  
     #could vectorize this whole thing instead of loop
    # for(d in 0:40){
@@ -85,9 +93,3 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
     }
     
     
-    
-    n.hh.days <- 0:40 #from day 0-40 of follow up in the household
-    n.day.hh <- lapply(n.hh.days , function(x){
-      
-      
-    })
