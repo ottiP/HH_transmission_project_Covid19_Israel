@@ -91,14 +91,18 @@ d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
       e1$hh_risk_time2 <-           ( e1$exposed.date - e1$contactinfect.date  )    ##time between when contact is infection and when person 1 is censored
     
       #Take the minimum of hh_risk_time1, hh_risk_time2
-      e1$hh_risk_time <- e1$hh_risk_time1 * (e1$hh_risk_time1<e1$hh_risk_time2) + e1$hh_risk_time2 * (e1$hh_risk_time2<e1$hh_risk_time1)
-      e1$hh_risk_time[e1$hh_risk_time <0] <- 0
+      e1$hh_risk_time <- as.numeric(e1$hh_risk_time1 * (e1$hh_risk_time1<e1$hh_risk_time2) + e1$hh_risk_time2 * (e1$hh_risk_time2<e1$hh_risk_time1))
+     
+       e1$hh_risk_time[e1$hh_risk_time <0] <- 0
       
       e1 <- e1[,c('agegrp','contactagegrp', 'vax','contactvax','hh_risk_time')]
       
+  
       #then aggregate the hh_risk time by group
       
       f1 <- aggregate( e1[,'hh_risk_time'], by=list('agegrp'=e1$agegrp,'contactagegrp'=e1$contactagegrp, 'vax'=e1$vax,'contactvax'=e1$contactvax), FUN=sum)
       
       saveRDS(f1,'./Data/discrete_data.rds')
+      write.csv(f1,'./Data/hh_follow_up.csv')
+      write.csv(n.date.uninf,'./Data/exogenous_follow_up.csv')
       
