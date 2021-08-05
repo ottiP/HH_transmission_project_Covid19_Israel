@@ -89,8 +89,10 @@ single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T & n.date.uninf$hh_inf
 single.hh$cum.prob_t1 <- exp(sum(log(single.hh$q_exo))) - (1-single.hh$q_exo) #cum prob up to t-1
 
 ll_exo_piece1 <-   sum(single.hh$countsInf * ( (log(1-single.hh$q_exo) - single.hh$cum.prob_t1) ) )
+
+#Then LL piece for households with infection with size>1
                              
-                             
+    #ZZZ                         
 
 
 
