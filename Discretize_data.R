@@ -1,7 +1,7 @@
 library(data.table)
 library(dplyr)
 library(lubridate)
-d1 <- readRDS('./Data/simulated_data.rds')
+a1 <- readRDS('./Data/simulated_data.rds')
 set.seed(123)
 
 
@@ -10,22 +10,22 @@ end.date <- as.Date('2021-04-01')
 all.date <- seq.Date(from=start.date, to=end.date, by='day')
 
 #When exposed? (this is date of censoring)
-d1$exposed.date <- floor_date(d1$PCR_DATE - rgamma(nrow(d1), 7,2), unit='day') #note: need to use floor date otherwise have fractional days, which causes problems later
-d1$exposed.date[d1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
+a1$exposed.date <- floor_date(a1$PCR_DATE - rgamma(nrow(a1), 7,2), unit='day') #note: need to use floor date otherwise have fractional days, which causes problems later
+a1$exposed.date[a1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
 
 #When infectious?
-d1$infect.date <- floor_date(d1$exposed.date + rgamma(nrow(d1), 3,2), unit='day')
-d1$infect.date[d1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
+a1$infect.date <- floor_date(a1$exposed.date + rgamma(nrow(a1), 3,2), unit='day')
+a1$infect.date[a1$infected==0] <- end.date #if uninfected; censor at the end of follow up time
 
 #When is the person no longer infectious
-d1$end.infectious.date <- floor_date(d1$infect.date + rgamma(nrow(d1), 7,1), unit='day')
+a1$end.infectious.date <- floor_date(a1$infect.date + rgamma(nrow(a1), 7,1), unit='day')
 
-d1$agegrp <- 1
-d1$agegrp[d1$AGE>18 & d1$age<60] <- 2
-d1$agegrp[d1$AGE>=60 & d1$age<150] <- 3
+a1$agegrp <- 1
+a1$agegrp[a1$AGE>18 & a1$age<60] <- 2
+a1$agegrp[a1$AGE>=60 & a1$age<150] <- 3
 
 #What is the first date of infection in each household, how many Infectins per HH, how many people per HH?
-d1 <- d1 %>%
+a1 <- a1 %>%
   group_by(HH_CERTAIN) %>%
   mutate(
     hh.first.date = min(exposed.date, na.rm = T),
@@ -35,9 +35,9 @@ d1 <- d1 %>%
   ) %>%
   arrange(HH_CERTAIN)
 
-d1$hh_infected <- d1$n.infections.hh > 1 #Is this a HH that is ultimately infected?
+a1$hh_infected <- a1$n.infections.hh > 1 #Is this a HH that is ultimately infected?
 
-d1$hh_single <- d1$n.people.hh ==1 #is this a single person HH
+a1$hh_single <- a1$n.people.hh ==1 #is this a single person HH
 
 
 ####################################################################################################################
@@ -48,12 +48,12 @@ d1$hh_single <- d1$n.people.hh ==1 #is this a single person HH
 #Not sure if this is right--do we need to separate this out for households who ultimately become infected and those that don't?
 
 n.date.uninf <- lapply(all.date, function(x){
-  vax <- ((d1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
-  countsUninf <-  d1$exposed.date > x 
-  countsInf <-  (d1$exposed.date == x)*d1$infected  #how many people exposed this date? 
+  vax <- ((a1$vax2dose_date + 10) < x )#was the person vaccinated 10+ days before the current date?
+  countsUninf <-  a1$exposed.date > x 
+  countsInf <-  (a1$exposed.date == x)*a1$infected  #how many people exposed this date? 
   
   grpN <- aggregate( cbind.data.frame(countsUninf,countsInf), 
-                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=d1$agegrp, person_infected=d1$infected, hh_single=d1$hh_single), 
+                     by = list(date=rep(x, length(vax)),vax1 = vax, agec=a1$agegrp, person_infected=a1$infected, hh_single=a1$hh_single), 
                      FUN = sum)
   return(grpN)
 }
@@ -116,7 +116,7 @@ ll_exo <- ll_exo_piece0 + ll_exo_piece1  #Exogenous LL contribution
     
 
      #FIlter out HH with no infections infections and 1 people for this calculation since focus is on HH transmission specifically
-    b1 <- d1[d1$n.infections.hh>0 & d1$n.people.hh>=2 ,]
+    b1 <- a1[a1$n.infections.hh>0 & a1$n.people.hh>=2 ,]
     
     
      ##ASSUMPTION: fix the vaccine status for each individual to its value at date of first infection in the HH (reasonable given relatively short time period)
