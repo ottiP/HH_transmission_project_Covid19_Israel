@@ -84,7 +84,7 @@ uninf.hh <- n.date.uninf[n.date.uninf$hh_infected==F,]
 ll_exo_piece0 <- sum( log( (1- uninf.hh$q_exo )^ uninf.hh$countsUninf )) #LL contribution of uninfected HH
 
 ##exogenous LL for HH with 1 infection, 1 person
-single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T,c('date','q_exo','countsInf')])
+single.hh <- unique(n.date.uninf[n.date.uninf$hh_single==T & n.date.uninf$hh_infected==T ,c('date','q_exo','countsInf')])
 
 single.hh$cum.prob_t1 <- exp(sum(log(single.hh$q_exo))) - (1-single.hh$q_exo) #cum prob up to t-1
 
