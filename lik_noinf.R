@@ -2,9 +2,15 @@
 #Likelihood Combinations and Calculations: define function
 #################################################################################################################################
 lik_noinf <- function(params,cases,df_noinf){
+  
+  library(lubridate)
   df_noinf$SECOND_VACCINE_DATE[is.na(df_noinf$vax2dose_date) == 1]<-enddate + 1  #Unvaccinated people (day after study ends)
+  df_noint$SECOND_VACCINE_DATE<-floor_date(df_noint$SECOND_VACCINE_DATE)
   vax_cats<-unique(df_noinf$vax2dose_date)
   n_vax_cats<-length(vax_cats)
+  
+  start<-floor_date(start)
+  enddate<-floor_date(enddate)
   
   age1<-as.numeric(df_noinf$AGE >= 10 & df_noinf$AGE < 60)
   age2<-as.numeric(df_noinf$AGE >= 60)
