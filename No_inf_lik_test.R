@@ -102,9 +102,9 @@ s2_sum<-matrix(0.00,
                ncol = (last_day - first_day + 1))
 for(j in 1:n_vax_cats){
   for(k in 1:(enddate - start + 1)){
-    s0[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age1 == 0) & (age2 == 0) & ((df1$enddate-1) == complete_dates[k])) ### check day before first exposure in the HH 
-    s1[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age1 == 1) & ((df1$enddate-1) == complete_dates[k]))                
-    s2[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age2 == 1) & ((df1$enddate-1) == complete_dates[k]))                
+    s0[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age1 == 0) & (age2 == 0) & ((df1$first.date.hh-1) == complete_dates[k])) ### check day before first exposure in the HH 
+    s1[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age1 == 1) & ((df1$first.date.hh-1) == complete_dates[k]))                
+    s2[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age2 == 1) & ((df1$first.date.hh-1) == complete_dates[k]))                
     
   }
 }
