@@ -4,10 +4,12 @@
 lik_noinf <- function(params,cases,df_noinf){
   
   library(lubridate)
-  df_noinf$SECOND_VACCINE_DATE[is.na(df_noinf$vax2dose_date) == 1]<-enddate + 1  #Unvaccinated people (day after study ends)
-  df_noint$SECOND_VACCINE_DATE<-floor_date(df_noint$SECOND_VACCINE_DATE)
+  df_noinf$vax2dose_date[is.na(df_noinf$vax2dose_date) == 1]<-enddate + 1  #Unvaccinated people (day after study ends)
+  df_noinf$vax2dose_date<-floor_date(df_noinf$vax2dose_date)
   vax_cats<-unique(df_noinf$vax2dose_date)
   n_vax_cats<-length(vax_cats)
+  
+  cases<-rnorm(n = as.numeric(enddate - start + 1))
   
   start<-floor_date(start)
   enddate<-floor_date(enddate)
@@ -64,10 +66,6 @@ lik_noinf <- function(params,cases,df_noinf){
   return(-ll_contribution)
   
 }
-
-
-
-
 
 
 

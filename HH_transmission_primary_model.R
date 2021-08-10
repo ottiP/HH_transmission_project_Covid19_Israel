@@ -65,7 +65,7 @@ saveRDS(sim.data.df,file=paste("./Data/simulated_data.rds"),compress=TRUE)
 
 
 ##### Load the data 
-data_sim <- readRDS("../Data/simulated_data.rds")
+data_sim <- readRDS("./Data/simulated_data.rds")
 startdate <- as.Date("2020-08-29") ### allow for up to 17 days prior to the start of the study period to infections to occur
 start <- as.Date("2020-09-15")
 enddate <- as.Date("2021-03-24")#as.Date(max(data_sim$PCR_DATE,na.rm = TRUE),"%d-%m-%y")
