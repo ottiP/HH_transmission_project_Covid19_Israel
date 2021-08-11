@@ -32,9 +32,9 @@ source('./data_manipulation_ksm_dose2.R')
 
 ##### Load the data 
 data_sim <- readRDS("./Data/simulated_data.rds")
-startdate <- as.Date("2020-08-29") ### allow for up to 17 days prior to the start of the study period to infections to occur
-start <- as.Date("2020-09-15")
-enddate <- as.Date("2021-03-24")#as.Date(max(data_sim$PCR_DATE,na.rm = TRUE),"%d-%m-%y")
+#startdate <- as.Date("2020-08-29") ### allow for up to 17 days prior to the start of the study period to infections to occur
+#start <- as.Date("2020-09-15")
+#enddate <- as.Date("2021-03-24")#as.Date(max(data_sim$PCR_DATE,na.rm = TRUE),"%d-%m-%y")
 pos_test_complete <- table(data_sim$PCR_DATE[data_sim$infected==1])
 data_spl <- split(data_sim,data_sim$HH_CERTAIN)
 data_spl_restricted <- lapply(data_spl,function(x) x=x[(min(x$PCR_DATE,na.rm = TRUE)>=start)&(max(x$PCR_DATE,na.rm=TRUE)<=enddate),])
@@ -74,6 +74,8 @@ first_day<-floor_date(first_day)
 last_day<-floor_date(last_day)
 #last_day_HH<-floor_date(df1$first.date.hh)-1 #day before first exposure in the HH
 complete_dates<-floor_date(complete_dates)
+df1$first.date.hh <- floor_date(df1$first.date.hh)
+
 
 age1<-as.numeric(df1$AGE >= 10 & df1$AGE < 60)  #CHECK AGE GROUPS
 age2<-as.numeric(df1$AGE >= 60)                            #CHECK AGE GROUPS
@@ -101,7 +103,7 @@ s2_sum<-matrix(0.00,
                nrow = n_vax_cats,
                ncol = (last_day - first_day + 1))
 for(j in 1:n_vax_cats){
-  for(k in 1:(enddate - start + 1)){
+  for(k in 1:(last_day - first_day + 1)){
     s0[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age1 == 0) & (age2 == 0) & ((df1$first.date.hh-1) == complete_dates[k])) ### check day before first exposure in the HH 
     s1[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age1 == 1) & ((df1$first.date.hh-1) == complete_dates[k]))                
     s2[j,k]<-sum((df1$vax2dose_date == vax_cats[j]) & (age2 == 1) & ((df1$first.date.hh-1) == complete_dates[k]))                
