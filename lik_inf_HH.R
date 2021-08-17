@@ -1,20 +1,12 @@
-#################################################################################################################################
-#Likelihood Combinations and Calculations: define function
-#################################################################################################################################
-lik_noinf <- function(params,cases,df_noinf){
-  df_noinf$vax2dose_date[is.na(df_noinf$vax2dose_date) == 1]<-enddate + 1  #Unvaccinated people (day after study ends)
-  df_noinf$vax2dose_date<-floor_date(df_noinf$vax2dose_date)
-  vax_cats<-unique(df_noinf$vax2dose_date)
-  n_vax_cats<-length(vax_cats)
-  
-  cases<-rnorm(n = as.numeric(enddate - start + 1))
-  
-  start<-floor_date(start)
-  enddate<-floor_date(enddate)
-  
-  age1<-as.numeric(df_noinf$AGE >= 10 & df_noinf$AGE < 60)
-  age2<-as.numeric(df_noinf$AGE >= 60)
-  
+####################################################################
+#Reading in Data
+####################################################################
+
+###############################################################################################################################################################
+# Likelihood function for single HH with infections 
+lik_inf_HH <- function(params,cases,s0_sum,s1_sum,s2_sum,vax_cats,n_vax_cats){
+  enddate <-floor_date(enddate)
+  start <- floor_date(startdate)
   age0_log_probs<-rep(0.00,
                       times = n_vax_cats)
   age1_log_probs<-rep(0.00,
@@ -31,7 +23,7 @@ lik_noinf <- function(params,cases,df_noinf){
              0,
              cases)
     p0<-1.00/(1.00 + exp(-x%*%params))
-    age0_log_probs[j]<-sum((df_noinf$vax2dose_date == vax_cats[j]) & (age1 == 0) & (age2 == 0))*sum(log(1.00 - p0))
+    age0_log_probs[j]<-sum(s0_sum[j,]*log(1.00 - p0))
     
     #age1
     x<-cbind(0,
@@ -42,7 +34,7 @@ lik_noinf <- function(params,cases,df_noinf){
              0,
              cases)
     p0<-1.00/(1.00 + exp(-x%*%params))
-    age1_log_probs[j]<-sum((df_noinf$vax2dose_date == vax_cats[j]) & (age1 == 1))*sum(log(1.00 - p0))
+    age1_log_probs[j]<-sum(s1_sum[j,]*log(1.00 - p0))
     
     #age2
     x<-cbind(0,
@@ -53,16 +45,23 @@ lik_noinf <- function(params,cases,df_noinf){
              1,
              cases)
     p0<-1.00/(1.00 + exp(-x%*%params))
-    age2_log_probs[j]<-sum((df_noinf$vax2dose_date == vax_cats[j]) & (age2 == 1))*sum(log(1.00 - p0))
+    age2_log_probs[j]<-sum(s2_sum[j,]*log(1.00 - p0))
     
   }
   ll_contribution<-sum(age0_log_probs +
                          age1_log_probs +
                          age2_log_probs)
   
+  
   return(-ll_contribution)
   
 }
+
+
+
+
+
+
 
 
 
