@@ -24,8 +24,7 @@ singleHHinf_manipulate <- function(df){
   age1<-as.numeric(df$AGE >= 12 & df$AGE < 60)  #CHECK AGE GROUPS
   age2<-as.numeric(df$AGE >= 60)                            #CHECK AGE GROUPS
   
-  #df$exposed.date <- floor_date(df$PCR_DATE - rgamma(nrow(df),shape=4,scale=1)-rgamma(nrow(df), shape=2.34,scale=1/(2.59)), unit='day') #note: need to use floor date otherwise have fractional days, which causes problems later
-  df$exposed.date <- floor_date(df$PCR_DATE - 2-2, unit='day') #note: need to use floor date otherwise have fractional days, which causes problems later
+  df$exposed.date <- floor_date(df$PCR_DATE - rgamma(nrow(df),shape=4,scale=1)-rgamma(nrow(df), shape=2.34,scale=1/(2.59)), unit='day') #note: need to use floor date otherwise have fractional days, which causes problems later
   ###############################################################################################################################################################
   #Getting Counts:
   #This should be calculated outside of the likelihood function (data preparation stage) and "s0, s1, s2, s0_sum, s1_sum, s2_sum" should be input to the function
