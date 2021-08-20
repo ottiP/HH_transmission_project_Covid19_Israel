@@ -13,46 +13,44 @@ singleHHinf_manipulate <- function(df){
   df$SECOND_VACCINE_DATE <- ifelse((df$SECOND_VACCINE_DATE+10)<=as.character(enddate),as.character(df$SECOND_VACCINE_DATE+10),as.character(enddate+1))
   df$SECOND_VACCINE_DATE[is.na(df$SECOND_VACCINE_DATE) == 1]<-as.character(enddate + 1)  #Unvaccinated people (day after study ends)
   df$SECOND_VACCINE_DATE<-floor_date(as.Date(df$SECOND_VACCINE_DATE))
-  df$vax2day<-df$SECOND_VACCINE_DATE-start+1
-  
-  n_cats<-6 #(2 vax categories)x(3 age categories)
+  vax_cats<-unique(df$SECOND_VACCINE_DATE)
+  n_vax_cats<-length(vax_cats)
     
-  age0<-as.numeric(df$AGE < 12)                 #CHECK AGE GROUPS
-  age1<-as.numeric(df$AGE >= 12 & df$AGE < 60)  #CHECK AGE GROUPS
-  age2<-as.numeric(df$AGE >= 60)                #CHECK AGE GROUPS
-  
   df$exposed.date <- floor_date(df$PCR_DATE - rgamma(nrow(df),shape=4,scale=1)-rgamma(nrow(df), shape=2.34,scale=1/(2.59)), unit='day') #note: need to use floor date otherwise have fractional days, which causes problems later
     
-  vax2 <- matrix(0.00, nrow = length(df), ncol = (enddate - start + 1))
+  vax <- matrix(0.00, nrow = length(df), ncol = (enddate - start + 1))
   suscept <- matrix(0.00, nrow = length(df), ncol = (enddate - start + 1))
-  #for (i in 1:length(df)){
-  #  if (df[i]$vax2day < (enddate - start + 1)){
-  #    vax2[i,df[i]$vax2day:end] <- 1 # Not sure how best to code this in R, but hopefully one of these should work!
-  #    suscept[i,1:(df[i]$exposed.date - start + 1)] <- 1
-  #    #vax2[i, ] <- c(rep(0, times = as.numeric(df[i]$vax2day - 1)), rep(1, times = as.numeric(enddate - start + 1 - df[i]$vax2day)))
-  #    #suscept[i, ] <- c(rep(1, times = as.numeric(df[i]$exposed.date - start)), rep(0, times = as.numeric(enddate df[i]$exposed.date)))
-  #    }
-  #}
-  # I think the code below is the easier/faster way to do the same thing as above
+  infect <- matrix(0.00, nrow = length(df), ncol = (enddate - start + 1))
   for (j in 1:(enddate - start + 1)){
-    vax2[,j] <- as.numeric(df$vax2day < j)
-    suscept[,j] <- as.numeric((df$exposed.date - start + 1) >= j)
+    vax[,j] <- as.numeric((df$SECOND_VACCINE_DATE - start + 1) < j)
+    suscept[,j] <- as.numeric((df$exposed.date - start + 1) > j)
+    infect[,j] <- as.numeric((df$exposed.date - start + 1) == j)
   }
-    
+  vax2 <- vax[,(vax_cats-start)] # only need to keep vax status for unique vax dates
+  
+  # Using logical indexing below
+  age0<-(df$AGE < 12)                 #CHECK AGE GROUPS
+  age1<-(df$AGE >= 12 & df$AGE < 60)  #CHECK AGE GROUPS
+  age2<-(df$AGE >= 60)                #CHECK AGE GROUPS
   
   ###############################################################################################################################################################
   #Getting Counts:
   #This should be calculated outside of the likelihood function (data preparation stage) and "s0, s1, s2, s0_sum, s1_sum, s2_sum" should be input to the function
   ###############################################################################################################################################################
   
-  s00 <- t(age0)%*%(1-vax2) # transposing age0 because I'm thinking it's a column vector? this should be matrix multiplication of (1xn)x(nxd) = (1xd) vector of number of individuals in cat00 on day d
-  s01 <- t(age1)%*%(1-vax2)
-  s02 <- t(age2)%*%(1-vax2)
-  s10 <- t(age0)%*%vax2 
-  s11 <- t(age1)%*%vax2
-  s12 <- t(age2)%*%vax2
+  # Number vax on day i who were infected on day j
+  s0 <- t(vax2[age0,])%*%infect[age0,] # this should be matrix multiplication of (n_vax_cat x n_indiv) x (n_indiv x tot_days) = (n_vax_cat x tot_days) 
+  s1 <- t(vax2[age1,])%*%infect[age1,]
+  s2 <- t(vax2[age2,])%*%infect[age2,]
   
- 
-  out.list <- list('s00'=s00,'s01'=s01,'s02'=s02,'s10'=s10,'s11'=s11,'s12'=s12,'n_cats'=n_cats)
+  # Number vax on day i who were susceptible on day j
+  s0_sum <- t(vax2[age0,])%*%suscept[age0,] # this should be matrix multiplication of (n_vax_cat x n_indiv) x (n_indiv x tot_days) = (n_vax_cat x tot_days) 
+  s1_sum <- t(vax2[age1,])%*%suscept[age1,]
+  s2_sum <- t(vax2[age2,])%*%suscept[age2,]
+  
+  
+  out.list <- list('s0'=s0,'s1'=s1,'s2'=s2,'s0_sum'=s0_sum,'s1_sum'=s1_sum,'s2_sum'=s2_sum,'vax_cats'=vax_cats,'n_vax_cats'=n_vax_cats)
   return(out.list)
 }
+
+
