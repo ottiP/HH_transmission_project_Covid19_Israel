@@ -17,7 +17,7 @@ delay.gen.ksm.singleHH.age <- function(input_df){
 
   df3.spl <- split(df3, paste0(df3$ID, df3$ID_b))
   df4.spl <- lapply(df3.spl, function(x){
-    x$exxpand.t <- NA
+    x$expand.t <- NA
     x$expand.t[x$infected==0] <- x$max.time.hh[x$infected==0] #censor uninfected person at max.time.hh
     x$expand.t[x$infected==1] <- x$day.exposed[x$infected==1] #censor infected person at (latent) day of exposure
     

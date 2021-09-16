@@ -1,7 +1,7 @@
 ######################################################
 #Fake Data
 ######################################################
-singleHHinf_manipulate <- function(df){
+singleHHinf_manipulate_GP <- function(df){
 
   start<-floor_date(startdate)
   enddate<- floor_date(enddate)
