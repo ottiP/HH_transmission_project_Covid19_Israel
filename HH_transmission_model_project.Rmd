@@ -1,0 +1,385 @@
+---
+title: "HH_model_simulation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lubridate)
+library(dplyr)
+library(parallel)
+library(pbapply)
+library(matrixStats)
+library(zoo)
+library(table1)
+library(ggplot2)
+library(msm)
+library(doParallel)
+library(reshape2)
+source('./compute_CI.R')
+source('./sim_functions/generate_delay_dist.R')
+source('./sim_functions/simulation_analysis_gamma.R')
+source("./chain_bin_lik.R")
+source("./sim_functions/parRead.R")
+
+N.delay.draw <- 10
+```
+
+## Generate the data
+```{r}
+
+nCores <- detectCores() - 1
+
+set.seed(123)
+
+cl1 <-makeCluster(nCores)
+clusterExport(cl1, c('sim.hh.func.fixed'), environment())
+
+
+  sim.ds.ls3 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=3) #650K HH=~2m ppl
+sim.ds3 <- bind_rows(sim.ds.ls3)
+
+  sim.ds.ls2 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=2) #650K HH=~2m ppl
+sim.ds2 <- bind_rows(sim.ds.ls2)
+
+  sim.ds.ls1 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=1) #650K HH=~2m ppl
+sim.ds1 <- bind_rows(sim.ds.ls1)
+
+stopCluster(cl1)
+
+sim.ds1$HH <- paste0('1_',sim.ds1$HH)
+sim.ds1$HH.size <- 1
+
+sim.ds2$HH <- paste0('2_',sim.ds2$HH)
+sim.ds2$HH.size <- 2
+
+sim.ds3$HH <- paste0('3_',sim.ds3$HH)
+sim.ds3$HH.size <- 3
+
+#sim.ds <- bind_rows(list(sim.ds1,sim.ds2,sim.ds3))
+sim.ds <- bind_rows(list(sim.ds1,sim.ds2,sim.ds3))
+
+table(sim.ds$HH.size, sim.ds$infected)
+
+sim.ds$PCR_DATE <- as.Date('2020-07-01') + sim.ds$first.infection.date
+sim.ds$PCR_DATE[sim.ds$first.infection.date==-9999] <- as.Date('2099-01-01') 
+
+sim.ds$IS_POSITIVE_CD <-1
+sim.ds$IS_POSITIVE_CD[sim.ds$infected==1] <-2
+
+
+d1.ls <- pbreplicate(N.delay.draw,generate_delay_dist(sim.ds), simplify=F)
+
+
+saveRDS(d1.ls,'../intermediate_data/sim_ds_fix_gamma.rds')
+
+```
+
+
+
+```{r}
+test_dates <- seq.Date(from=as.Date('2020-05-15'),to=as.Date('2021-07-28'),by='day')
+
+#FUNCTION####
+summary_stats <- function(eval_date, ds){
+  
+  f1 <- ds[ ds$date.exposed >= '2020-05-15',]
+
+  f1$vax1 <- f1$vax
+  f1$infectious_t <- 1*(eval_date >= f1$date.onset & eval_date <= f1$date.infected.end ) #is the person infectious at this time?
+  
+  f1$susceptible_t <- 1*(eval_date <= f1$date.exposed ) #is the person susceptible to infection at this time point?
+  
+  f1$new.inf <- 1*( f1$date.exposed == eval_date ) #is the person newly infected at this time point?
+  
+   #Subset with 2+ people in HH and at least 1 infection all time
+    f1_multi_inf <- f1[f1$N_people_HH >1 & f1$N_infect_hh>0 ,]
+  
+  f1.infectious_t <- f1_multi_inf[f1_multi_inf$infectious_t==1,]
+  
+  #by Household, count number of  infectious people, by vaccine status
+ # t1 <- proc.time()
+  
+  #Create a variable representing the number of the infectious contacts in each of the vaccine categories--use this as a stratification variable
+  f1.inf.agg1 <- f1.infectious_t %>%
+   group_by(HH=as.factor(HH), vax1_contact=vax1) %>%
+      summarise(hh_infectious_contacts_t = sum(infectious_t)  )
+  
+  if(nrow(f1.inf.agg1)!=0){
+  f1.inf.agg1.c <- reshape2::dcast(f1.inf.agg1, HH ~ vax1_contact, value.var='hh_infectious_contacts_t', fill=0)
+  
+  f1.inf.agg1.c$contact_vax_pattern <- 
+    apply(f1.inf.agg1.c,1, function(x) paste(x[-1] ,collapse='_')) 
+
+  f1.inf.agg1.c <- f1.inf.agg1.c[,c("HH",'contact_vax_pattern')]
+  
+  f1.inf.agg1.c$HH <- as.character(f1.inf.agg1.c$HH)
+  #Then merge that back in with the HH data for all HH with 
+  }
+  
+  f1.susc <- f1_multi_inf[f1_multi_inf$susceptible_t==1 | f1_multi_inf$new.inf==1,]  #only care about people who are currently susceptible or have a new infection
+  
+  f2.susc <- merge(f1.susc,f1.inf.agg1,
+              by='HH', all.x=T)
+  
+  if(nrow(f1.inf.agg1)!=0){
+    
+      f2.susc <- merge(f2.susc,f1.inf.agg1.c,
+              by='HH', all.x=T)
+    
+  }
+
+  f2.susc$hh_infectious_contacts_t[is.na( f2.susc$hh_infectious_contacts_t)] <- 0
+  
+  f2.susc$contact_vax_pattern[f2.susc$hh_infectious_contacts_t==0] <- '999'
+  f2.susc$vax1_contact<-as.character(f2.susc$vax1_contact)
+  f2.susc$vax1_contact[is.na(f2.susc$vax1_contact)] <- '99'
+ 
+  #  f2.susc$vax1_contact[is.na( f2.susc$vax1_contact)] <- '99'
+  f1_rest <- f1[f1$N_people_HH ==1 | f1$N_infect_hh==0 ,]
+  f1_rest <- f1_rest[f1_rest$susceptible_t==1 | f1_rest$new.inf==1,]  #only care about people who are currently susceptible or have a new infection
+
+  #sum the number of infectious contacts across all exposed individuals (some might be counted multiple times within HH; count N unique susceptible per age/vax stratum)
+  f2.susc.agg <- f2.susc %>%
+    group_by( vax1, vax1_contact, new.inf, hh_infectious_contacts_t,contact_vax_pattern) %>%
+    summarise(
+      N_combos = sum(hh_infectious_contacts_t),
+      N_susc_people = n_distinct(id)
+    )
+  
+  #Aggregate the groups for HH with 1 person and those HH with no infections
+  f2_rest_agg <- f1_rest %>%
+     group_by( vax1, new.inf) %>%
+    summarise(N_susc_people=n_distinct(id)) %>%
+    mutate(N_combos=0,hh_infectious_contacts_t=0, vax1_contact='99',contact_vax_pattern='999')
+
+  #Combine the HH with infections and ose with >1 person and the other Households
+  f2_all <- bind_rows(f2.susc.agg, f2_rest_agg) %>%
+     group_by( vax1, vax1_contact,new.inf,hh_infectious_contacts_t,contact_vax_pattern) %>%
+     summarise(N_combos=sum(N_combos), N_susc_people=sum(N_susc_people))
+  
+  f2_all$vax1_contact[is.na(f2_all$vax1_contact)] <- 99
+      
+  f2_all$date <- eval_date #Assign the date to the DF
+  #}
+  
+  f2_all$vax1 <- as.factor(f2_all$vax1)
+  f2_all$vax1_contact <- as.factor(f2_all$vax1_contact)
+
+return(f2_all)
+}
+```
+
+
+```{r}
+d1.ls <- readRDS('../intermediate_data/sim_ds_fix_gamma.rds')
+
+```
+
+```{r}
+
+call_summary_fun <- function(N){
+  summary_tables.ls <- lapply(test_dates, summary_stats, ds=d1.ls[[N]])
+  summary_tables <- bind_rows(summary_tables.ls) 
+  saveRDS(summary_tables,paste('../intermediate_data/summary_table_',N,'iter_SIM.rds'))
+}
+
+nCores <- min(N.delay.draw,(detectCores() - 1))
+cl1 <-makeCluster(nCores)
+
+# Run JAGS in parallel
+clusterEvalQ(cl1, {
+  library(dplyr,quietly = TRUE)
+})
+
+clusterExport(cl1, c('call_summary_fun','test_dates','summary_stats','d1.ls'), environment())
+pblapply(1:N.delay.draw,call_summary_fun,cl=cl1)
+
+stopCluster(cl1)
+
+
+```
+
+**The data** : One observation per person in KSM; if positive date of first positive swab; if negative or not tested also included
+
+
+```{r}
+#298 days * 2 vaccine cats * 4 agec *2 vax (contacts) * 2 new.inf
+model.run <- function(summary_tables){
+  
+  #summary_tables <- summary_tables[summary_tables$hh_infectious_contacts_t %in% c(0,2),]
+  
+  summary_tables <- summary_tables[summary_tables$date<='2021-07-28',]
+
+# Contribution of HH infection--only include HHs with other members
+  summary_tables$infected_HH <- 1*(summary_tables$hh_infectious_contacts_t > 0)
+
+  levels(summary_tables$vax1_contact) <- c(levels(summary_tables$vax1_contact), '99')
+
+  summary_tables$vax1_contact[is.na(summary_tables$vax1_contact)] <- '99'
+
+  summary_tables <- unique(summary_tables)
+
+  summary_tables$roworder <- 1:nrow(summary_tables)
+
+  table(summary_tables$vax1,summary_tables$vax1_contact)
+    #table(summary_tables$vax1[])
+
+  
+
+  summary_tables$both.vax <- 1*(summary_tables$vax1_contact %in% c('1','2','3') & summary_tables$vax1 %in% c('1','2','3')) #flag if both people are vaccinated
+  
+  #summary_tables$exclude <- 1*(summary_tables$vax1_contact %in% c('1','2','3') & summary_tables$vax1 %in% c('1','2','3'))
+
+
+  summary_tables$vax1_contact <- relevel(summary_tables$vax1_contact,'0')
+
+  summary_tables$vax1_contact_alt <- summary_tables$vax1_contact
+  
+summary_tables$vax1_contact_alt[summary_tables$vax1_contact_alt=='99'] <-'0'
+  
+     summary_tables$vax1_contact_alt <- factor( summary_tables$vax1_contact_alt, levels = c('0','1'))
+
+     
+  mod.mat <- model.matrix( ~ 1  +  vax1 +   vax1_contact                                                    , data=summary_tables) 
+ 
+  mod.mat <- cbind(rep(1, times=nrow(mod.mat)) ,mod.mat)
+
+  colnames(mod.mat)[1:2] <- c('Intercept_HH', 'Intercept_Comm')
+
+  mod.mat <- mod.mat[,-grep('99',colnames(mod.mat))]
+ # mod.mat <- mod.mat[,-which(colnames(mod.mat)=='both.vax')]
+  #mod.mat <- mod.mat[,-grep('post:vax1_contact.:both.vax',colnames(mod.mat))]
+  # mod.mat <- mod.mat[,-c(24:29)]
+
+  #Which variables should contribute to the HH and community risk?
+
+  hh.var.pos <- c(grep('Intercept_HH', colnames(mod.mat)),
+                   grep('vax',  colnames(mod.mat)) ) 
+      
+
+  mod.mat_hh <- mod.mat[,sort(hh.var.pos)]
+
+  #mod.mat_hh[summary_tables$hh_infectious_contacts_t==0,]  <- 0 #HH effects only contribute when infectious person is present --this should be redundant bc drops out of LL if HH_inf_contact=0
+
+    comm.var.pos <- c(grep('Intercept_Comm', colnames(mod.mat)),
+                    setdiff( grep('vax',  colnames(mod.mat)),  grep('contact',  colnames(mod.mat))   ))
+                    
+mod.mat_comm <- mod.mat[,sort(comm.var.pos)]
+
+
+mod.mat_comm.df <- cbind.data.frame('date'=summary_tables$date, 'N_susc_people'=summary_tables$N_susc_people, 'new.inf'=summary_tables$new.inf, 'vax1'=summary_tables$vax1 ,mod.mat_comm,'infected_HH'=summary_tables$infected_HH , 'roworder'=summary_tables$roworder,'contact_vax_pattern'=summary_tables$contact_vax_pattern, 'sort.index'=1:nrow(summary_tables))
+
+# for each category, signal if there are multiple entries--this is needed to prevent double counting community contribution (note don't need vax1_post, etc--it is implied by having date in there)
+mod.mat_comm.df <- mod.mat_comm.df %>%
+  group_by( vax1,  date, new.inf,N_susc_people,infected_HH,contact_vax_pattern ) %>%
+  add_count() %>%
+  mutate(first.grp= 1*(row_number()==1)^infected_HH ) 
+
+#Add ID for the groups
+mod.mat_comm.df$group_id <- mod.mat_comm.df %>% 
+  group_indices(paste( mod.mat_comm.df$vax1,  mod.mat_comm.df$date, mod.mat_comm.df$new.inf,mod.mat_comm.df$N_susc_people, mod.mat_comm.df$infected_HH, mod.mat_comm.df$contact_vax_pattern ))
+
+mod.mat_comm.df <- mod.mat_comm.df[order(mod.mat_comm.df$sort.index),]
+
+
+#test1 <- cbind.data.frame(mod.mat_comm.df, summary_tables)
+
+#Initial values for parameters
+parms_all <-  c(rep(-5,4), rep(0, ncol(mod.mat)-4)) 
+lower_param = c(rep(-20,4), rep(-5, ncol(mod.mat)-4)) 
+
+upper_param =c(rep(-1,4), rep(5, ncol(mod.mat)-4)) 
+
+
+#Initialize parameter vector for MLE
+
+#Which parameters (by column in mod.mat) contribute to HH and community portions
+hh_par_index <- which(colnames(mod.mat) %in% colnames(mod.mat_hh) )
+
+comm_par_index <- which(colnames(mod.mat) %in% colnames(mod.mat_comm) )
+
+mod1 <- nlm(f=chain_bin_lik_agg, p=parms_all,
+              X_hh=mod.mat_hh,
+              group_id=mod.mat_comm.df$group_id,
+              X_comm=mod.mat_comm,
+              first_grp =mod.mat_comm.df$first.grp,
+              new.inf = summary_tables$new.inf,
+               hh_par_index=hh_par_index,
+              comm_par_index=   comm_par_index,
+              N_susceptible=summary_tables$N_susc_people,
+              N_inf_contacts =summary_tables$hh_infectious_contacts_t ,
+              hessian = TRUE,iterlim=500)
+      coefs <- cbind.data.frame('beta'=mod1$estimate,'parm'=colnames(mod.mat) )                                    
+      #coefs$rr <- exp(coefs$beta)
+  names(mod1$estimate) <- colnames(mod.mat)
+return(mod1)
+#mod.mat[summary_tables$hh_infectious_contacts_t ==0  ,c('Intercept_HH','vax1_contact1','vax1_contact2')]  <- 0 #parameters only 'count' when infectious person is present
+ 
+}
+
+```
+
+
+Run model in sequence
+
+```{r}
+#  summary_tables <- readRDS(paste('../intermediate_data/summary_table_',N,'iter_SIM.rds'))
+
+#if cluster not working, can run in sequence
+out.list <- pblapply(c(1:N.delay.draw), parRead)
+saveRDS(out.list,file='../Results/dan_test_result.rds')
+
+```
+
+
+```{r}
+result<- readRDS("../Results/dan_test_result.rds")
+sapply(result,'[[','code')
+```
+
+
+
+
+```{r}
+
+parameters <- lapply(result, function(x) x<- x$estimate)
+OI <- lapply(result, function(x) solve(x$hessian))
+se <- lapply(OI, function(x) sqrt(diag(x)))
+CIupper <- lapply(seq_along(se),function(x) unlist(parameters[x])+1.96*unlist(se[x]))
+CIlower <- lapply(seq_along(se),function(x) unlist(parameters[x])-1.96*unlist(se[x]))
+CIupper.m<- colMeans(exp(do.call(rbind,CIupper)))
+CIlower.m<- colMeans(exp(do.call(rbind,CIlower)))
+se_mean <- colMeans(do.call(rbind,se))
+
+
+```
+
+Caterplot of coefficients combined together
+
+```{r}
+
+
+# Intercept_HH <- combined.estimates( Set.parmnames=c('Intercept_HH'))
+
+# Intercept_comm <- combined.estimates( Set.parmnames=c('Intercept_Comm'))
+
+
+vax1.eff <- combined.estimates( Set.parmnames=c('vax11'))
+vax1.eff$catterplot + ggtitle('Vax effect on susceptibility')
+
+vax1_contact2.eff <- combined.estimates( Set.parmnames=c('vax1_contact1'))
+vax1_contact2.eff$catterplot + ggtitle('Vax effect on infectiousness; infectious contact only vaccinated')
+
+
+
+
+
+
+
+```
+
+
+
+
+
