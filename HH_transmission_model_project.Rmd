@@ -71,7 +71,7 @@ sim.ds$IS_POSITIVE_CD[sim.ds$infected==1] <-2
 d1.ls <- pbreplicate(N.delay.draw,generate_delay_dist(sim.ds), simplify=F)
 
 
-saveRDS(d1.ls,'../intermediate_data/sim_ds_fix_gamma.rds')
+saveRDS(d1.ls,'./intermediate_data/sim_ds_fix_gamma.rds')
 
 ```
 
@@ -172,7 +172,7 @@ return(f2_all)
 
 
 ```{r}
-d1.ls <- readRDS('../intermediate_data/sim_ds_fix_gamma.rds')
+d1.ls <- readRDS('./intermediate_data/sim_ds_fix_gamma.rds')
 
 ```
 
@@ -181,7 +181,7 @@ d1.ls <- readRDS('../intermediate_data/sim_ds_fix_gamma.rds')
 call_summary_fun <- function(N){
   summary_tables.ls <- lapply(test_dates, summary_stats, ds=d1.ls[[N]])
   summary_tables <- bind_rows(summary_tables.ls) 
-  saveRDS(summary_tables,paste('../intermediate_data/summary_table_',N,'iter_SIM.rds'))
+  saveRDS(summary_tables,paste('./intermediate_data/summary_table_',N,'iter_SIM.rds'))
 }
 
 nCores <- min(N.delay.draw,(detectCores() - 1))
@@ -328,13 +328,13 @@ Run model in sequence
 
 #if cluster not working, can run in sequence
 out.list <- pblapply(c(1:N.delay.draw), parRead)
-saveRDS(out.list,file='../Results/dan_test_result.rds')
+saveRDS(out.list,file='./Results/mod_result.rds')
 
 ```
 
 
 ```{r}
-result<- readRDS("../Results/dan_test_result.rds")
+result<- readRDS("./Results/mod_result.rds")
 sapply(result,'[[','code')
 ```
 
