@@ -16,11 +16,11 @@ library(ggplot2)
 library(msm)
 library(doParallel)
 library(reshape2)
-source('./compute_CI.R')
-source('./sim_functions/generate_delay_dist.R')
-source('./sim_functions/simulation_analysis_gamma.R')
-source("./chain_bin_lik.R")
-source("./sim_functions/parRead.R")
+source('./R/compute_CI.R')
+source('./R/generate_delay_dist.R')
+source('./R/simulation_analysis_gamma.R')
+source("./R/chain_bin_lik.R")
+source("./R/parRead.R")
 
 N.delay.draw <- 10
 ```
@@ -36,13 +36,13 @@ cl1 <-makeCluster(nCores)
 clusterExport(cl1, c('sim.hh.func.fixed'), environment())
 
 
-  sim.ds.ls3 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=3) #650K HH=~2m ppl
+  sim.ds.ls3 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=3) #100K HH=~300K ppl
 sim.ds3 <- bind_rows(sim.ds.ls3)
 
-  sim.ds.ls2 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=2) #650K HH=~2m ppl
+  sim.ds.ls2 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=2) #100K HH=~200K ppl
 sim.ds2 <- bind_rows(sim.ds.ls2)
 
-  sim.ds.ls1 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=1) #650K HH=~2m ppl
+  sim.ds.ls1 <- parLapply(cl=cl1, 1:100000,sim.hh.func.fixed, hh.size=1) #100K HH=~100K ppl
 sim.ds1 <- bind_rows(sim.ds.ls1)
 
 stopCluster(cl1)
