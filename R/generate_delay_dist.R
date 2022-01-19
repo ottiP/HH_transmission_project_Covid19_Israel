@@ -3,7 +3,7 @@ generate_delay_dist<-function(df){
   #Could modify one of these to be time from infection to test
   expose.dist= rgamma(n.sim,shape=4,scale=1) #duration latent: Davies et al., The Lancet, 2020
   infect.dist= rgamma(n.sim,shape=4,scale=5/4) #duration of subclinical infectiousness -> temptative, this should be duration of clinical infectiousness, Davies, Lancet, 2020
-  delay.dist= rgamma(n.sim,shape=2.34,scale=1/2.59) #duration infectiousness to test  #from Li.et al., Science  May 2020, estimates after 23rd Jan, parameters for Gamma should be a and b
+  delay.dist= rgamma(n.sim,shape=1.5,scale=1) #duration infectiousness to test  #from Li.et al., Science  May 2020, estimates after 23rd Jan, parameters for Gamma should be a and b
   
   df$date.exposed <- floor_date(as.Date(df$PCR_DATE - delay.dist - expose.dist),'day')
   df$date.exposed[df$IS_POSITIVE_CD!=2] <- as.Date('2099-01-01')
